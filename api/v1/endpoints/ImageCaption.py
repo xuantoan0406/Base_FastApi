@@ -24,5 +24,3 @@ class ImageCaption:
         outputs = self.model.generate(**inputs)
         generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[0].strip()
         return generated_text
-
-

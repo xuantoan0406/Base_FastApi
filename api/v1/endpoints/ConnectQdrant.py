@@ -21,5 +21,13 @@ class ConnectQdrant:
         print("success")
 
     def insert(self, collection_name, id_data, data):
-        self.client.upsert(collection_name, points=[models.PointStruct(id=id_data, vector=[data])])
+        self.client.upsert(
+            collection_name,
+            points=[
+                {
+                    "id": id_data,
+                    "vector": data
+                }
+            ]
+        )
         return "insert success"
