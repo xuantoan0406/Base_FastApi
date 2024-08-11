@@ -1,15 +1,16 @@
 import torch
 import timm
 from torchvision import transforms
-from collections import OrderedDict
 from PIL import Image
+import torch.nn as nn
 
 
 class GetImageFeature:
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = timm.create_model('swin_tiny_patch4_window7_224', pretrained=True)
+        self.model = timm.create_model('swin_tiny_patch4_window7_224', pretrained=True).to(self.device)
         self.model.eval()
+        self.fc = None
         self.preprocess = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
@@ -19,7 +20,7 @@ class GetImageFeature:
 
     def get_features(self, image):
         img = Image.open(image)
-        img_tensor = self.preprocess(img).unsqueeze(0)
+        img_tensor = self.preprocess(img).unsqueeze(0).to(self.device)
         features = {}
 
         def hook_fn(module, input, output):
@@ -27,36 +28,16 @@ class GetImageFeature:
 
         # Register hook on the desired layer
         hook = self.model.patch_embed.register_forward_hook(hook_fn)
-
-        # Extract features
         with torch.no_grad():
             _ = self.model(img_tensor)
+        print(_.size())
 
         # Remove the hook
         hook.remove()
+        intermediate_features = features['intermediate']
+        num_features = intermediate_features.size(1) * intermediate_features.size(2) * intermediate_features.size(3)
+        self.fc = nn.Linear(num_features, 1024).to(self.device)
+        flattened_features = intermediate_features.view(intermediate_features.size(0), -1)
+        output_features = self.fc(flattened_features)
 
-        # Print the shape of the intermediate features
-        print(features['intermediate'].shape)
-        return features
-# Load pre-trained Swin Transformer model
-# model = timm.create_model('swin_tiny_patch4_window7_224', pretrained=True)
-# model.eval()
-#
-# # Define preprocessing transformations
-# preprocess = transforms.Compose([
-#     transforms.Resize(256),
-#     transforms.CenterCrop(224),
-#     transforms.ToTensor(),
-#     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-# ])
-#
-# # Load and preprocess image
-# img = Image.open('assets/images/00001-3171169063.png')
-# img_tensor = preprocess(img).unsqueeze(0)  # Add batch dimension
-#
-# # Extract features
-# with torch.no_grad():
-#     features = model(img_tensor)
-#
-# # Print feature shape
-# print(features.shape)
+        return output_features

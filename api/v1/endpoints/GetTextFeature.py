@@ -21,7 +21,7 @@ class GetTextFeature:
             self.device)
         outputs = self.model(**batch_dict)
         text_features = self.average_pool(outputs.last_hidden_state, batch_dict['attention_mask']).detach()
-        text_features=text_features.to("cpu").view(-1).numpy()
+        text_features=text_features.to("cpu").view(-1)
         return text_features
 
     @staticmethod
